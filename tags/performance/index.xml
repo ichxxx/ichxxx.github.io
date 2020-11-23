@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Performance on ichx&#39;s Blog</title>
+    <link>https://ichxxx.github.io/tags/performance/</link>
+    <description>Recent content in Performance on ichx&#39;s Blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>zh-cn</language>
+    <lastBuildDate>Mon, 23 Nov 2020 22:23:09 +0800</lastBuildDate><atom:link href="https://ichxxx.github.io/tags/performance/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Go中[]byte与string的转换优化</title>
+      <link>https://ichxxx.github.io/post/go%E4%B8%ADbyte%E4%B8%8Estring%E7%9A%84%E8%BD%AC%E6%8D%A2%E4%BC%98%E5%8C%96/</link>
+      <pubDate>Mon, 23 Nov 2020 22:23:09 +0800</pubDate>
+      
+      <guid>https://ichxxx.github.io/post/go%E4%B8%ADbyte%E4%B8%8Estring%E7%9A%84%E8%BD%AC%E6%8D%A2%E4%BC%98%E5%8C%96/</guid>
+      <description>先上优化代码： func bytesFromString(s string) []byte { tmp := (*[2]uintptr)(unsafe.Pointer(&amp;amp;s)) x := [3]uintptr{tmp[0], tmp[1], tmp[1]} return *(*[]byte)(unsafe.Pointer(&amp;amp;x)) } func stringFromBytes(b []byte) string { return *(*string)(unsafe.Pointer(&amp;amp;b)) } 一般而言，我们在Go中面对[]byte和string相互转换时，会使用内建的操作[]byte()和string()。但当我们对程序运行性能有较高要求的时候，就不得不考虑这他们的性能消耗问题。 以下源码基于Go 1.15。 内</description>
+    </item>
+    
+  </channel>
+</rss>

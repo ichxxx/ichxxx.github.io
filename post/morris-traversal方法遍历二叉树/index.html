@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"  lang="zh-cn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+<title>Morris Traversal方法遍历二叉树 | ichx&#39;s Blog</title>
+
+
+
+<link rel="stylesheet" href="/css/style.css"/><link rel='stylesheet' href='https://ichxxx.github.io/css/custom.css'><link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+<link rel="canonical" href="https://ichxxx.github.io/post/morris-traversal%E6%96%B9%E6%B3%95%E9%81%8D%E5%8E%86%E4%BA%8C%E5%8F%89%E6%A0%91/">
+<meta name="msapplication-TileColor" content="#da532c">
+<meta name="theme-color" content="#ffffff">
+</head>
+<body>
+<section class="section">
+  <div class="container">
+    <nav id="nav-main" class="nav">
+      <div id="nav-name" class="nav-left">
+        <a id="nav-anchor" class="nav-item" href="https://ichxxx.github.io">
+          <h1 id="nav-heading" class="title is-4">ichx&#39;s Blog</h1>
+        </a>
+      </div>
+      <div class="nav-right">
+        <nav id="nav-items" class="nav-item level is-mobile"><a class="level-item" aria-label="github" href='https://github.com/ichxxx'
+            target='_blank' rel='noopener'>
+            <span class="icon">
+              <i class><svg viewbox='0 0 24 24' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' aria-hidden='true'>
+    
+    <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+    
+  </svg></i>
+            </span>
+          </a><a class="level-item" aria-label="email" href='mailto:chen@ichxxx.cn'
+            target='_blank' rel='noopener'>
+            <span class="icon">
+              <i class><svg viewbox='0 0 24 24' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' aria-hidden='true'>
+    
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+    <polyline points="22,6 12,13 2,6"/>
+    
+  </svg></i>
+            </span>
+          </a></nav>
+      </div>
+    </nav>
+
+    <nav class="nav">
+      
+
+      
+    </nav>
+
+  </div>
+  <script src="/js/navicon-shift.js"></script>
+</section>
+<section class="section">
+  <div class="container">
+    <div class="subtitle tags is-6 is-pulled-right">
+      
+      
+<a class="subtitle is-6" href="/tags/algorithm/">#Algorithm</a>
+
+
+
+  
+  | <a class="subtitle is-6" href="/tags/binarytree/">#BinaryTree</a>
+  
+
+
+      
+    </div>
+    <h2 class="subtitle is-6">December 24, 2019</h2>
+    <h1 class="title">Morris Traversal方法遍历二叉树</h1>
+    
+    <div class="content">
+      <p>通常，实现二叉树遍历有两个常用的方法：一是递归，二是使用栈实现的迭代。
+这两种方法都是O(n)的空间复杂度（递归本身占用stack空间或者用户自定义的stack）</p>
+<p>Morris Traversal方法只需要O(1)空间，而且同样可以在O(n)时间内完成。</p>
+<p>要使用O(1)空间进行遍历，最大的难点在于：遍历到子节点时怎样重新返回到父节点（假设节点中没有指向父节点的指针）。</p>
+<p>由于不能用栈作为辅助空间。为了解决这个问题，Morris方法用到了线索二叉树的概念。
+在Morris方法中不需要为每个节点额外分配指针指向其前驱和后继节点，只需要利用叶子节点中的左右空指针指向某种顺序遍历下的前驱节点或后继节点就可以了。</p>
+<p>Morris只提供了中序遍历的方法，在中序遍历的基础上稍加修改可以实现前序遍历，而后序遍历就要再费点心思了。</p>
+<h1 id="一中序遍历">一、中序遍历</h1>
+<h2 id="步骤">步骤：</h2>
+<p>1.如果当前节点的左孩子为空，则输出当前节点并将其右孩子作为当前节点。</p>
+<p>2.如果当前节点的左孩子不为空，在当前节点的左子树中找到当前节点在中序遍历下的前驱节点。</p>
+<ul>
+<li>a) 如果前驱节点的右孩子为空，将它的右孩子设置为当前节点。当前节点更新为当前节点的左孩子。</li>
+<li>b)如果前驱节点的右孩子为当前节点，将它的右孩子重新设为空（恢复树的形状）。输出当前节点。当前节点更新为当前节点的右孩子。</li>
+</ul>
+<p>3.重复以上1、2直到当前节点为空。</p>
+<h2 id="图示">图示：</h2>
+<p>下图为每一步迭代的结果（从左至右，从上到下），cur代表当前节点，深色节点表示该节点已输出。</p>
+<p><img src="https://i.loli.net/2019/12/25/cvOM6eztQLkWYF2.jpg" alt="Morris Traversal_1.jpg"></p>
+<h2 id="代码">代码：</h2>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python">void inorderMorrisTraversal(TreeNode <span style="color:#f92672">*</span>root) {
+    TreeNode <span style="color:#f92672">*</span>cur <span style="color:#f92672">=</span> root, <span style="color:#f92672">*</span>prev <span style="color:#f92672">=</span> NULL;
+    <span style="color:#66d9ef">while</span> (cur <span style="color:#f92672">!=</span> NULL) {
+        <span style="color:#66d9ef">if</span> (cur<span style="color:#f92672">-&gt;</span>left <span style="color:#f92672">==</span> NULL) {
+            printf(<span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%d</span><span style="color:#e6db74"> &#34;</span>, cur<span style="color:#f92672">-&gt;</span>val);
+            cur <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>right;
+        } <span style="color:#66d9ef">else</span> {
+            <span style="color:#f92672">//</span> find predecessor
+            prev <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>left;
+            <span style="color:#66d9ef">while</span> (prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">!=</span> NULL <span style="color:#f92672">&amp;&amp;</span> prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">!=</span> cur)
+                prev <span style="color:#f92672">=</span> prev<span style="color:#f92672">-&gt;</span>right;
+ 
+            <span style="color:#66d9ef">if</span> (prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">==</span> NULL) {
+                prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">=</span> cur;
+                cur <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>left;
+            } <span style="color:#66d9ef">else</span> {
+                prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">=</span> NULL;<span style="color:#ae81ff">5</span>                 
+                printf(<span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%d</span><span style="color:#e6db74"> &#34;</span>, cur<span style="color:#f92672">-&gt;</span>val);
+                cur <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>right;
+            }
+        }
+    }
+}
+</code></pre></div><h2 id="复杂度分析">复杂度分析：</h2>
+<p>空间复杂度：O(1) （为只用了两个辅助指针）
+时间复杂度：O(n)</p>
+<p>证明时间复杂度为O(n)，最大的疑惑在于寻找中序遍历下二叉树中所有节点的前驱节点的时间复杂度是多少，即以下两行代码：</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#66d9ef">while</span> (prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">!=</span> NULL <span style="color:#f92672">&amp;&amp;</span> prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">!=</span> cur)
+    prev <span style="color:#f92672">=</span> prev<span style="color:#f92672">-&gt;</span>right;
+</code></pre></div><p>直觉上，认为它的复杂度是O(nlogn)，因为找单个节点的前驱节点与树的高度有关。
+但事实上，寻找所有节点的前驱节点只需要O(n)时间。n个节点的二叉树中一共有n-1条边，整个过程中每条边最多只走2次，一次是为了定位到某个节点，另一次是为了寻找上面某个节点的前驱节点，如下图所示，其中红色是为了定位到某个节点，黑色线是为了找到前驱节点。所以复杂度为O(n)。</p>
+<p><img src="https://i.loli.net/2019/12/25/cNg9apwBPyiESfU.jpg" alt="Morris Traversal_2 .jpg"></p>
+<hr>
+<h2 id="二前序遍历">二、前序遍历</h2>
+<p>前序遍历与中序遍历相似，代码上只有一行不同，不同就在于输出的顺序。</p>
+<h2 id="步骤-1">步骤：</h2>
+<p>1.如果当前节点的左孩子为空，则输出当前节点并将其右孩子作为当前节点。</p>
+<p>2.如果当前节点的左孩子不为空，在当前节点的左子树中找到当前节点在中序遍历下的前驱节点。</p>
+<ul>
+<li>a)如果前驱节点的右孩子为空，将它的右孩子设置为当前节点。当前节点更新为当前节点的左孩子。</li>
+<li>b)如果前驱节点的右孩子为当前节点，将它的右孩子重新设为空（恢复树的形状）。输出当前节点。当前节点更新为当前节点的右孩子。</li>
+</ul>
+<p>3.重复以上1、2直到当前节点为空。</p>
+<h2 id="图示-1">图示：</h2>
+<p><img src="https://i.loli.net/2019/12/25/yMAE4huXWJxmUjf.jpg" alt="Morris Traversal_3.jpg"></p>
+<h2 id="代码-1">代码：</h2>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python">void preorderMorrisTraversal(TreeNode <span style="color:#f92672">*</span>root) {
+    TreeNode <span style="color:#f92672">*</span>cur <span style="color:#f92672">=</span> root, <span style="color:#f92672">*</span>prev <span style="color:#f92672">=</span> NULL;
+    <span style="color:#66d9ef">while</span> (cur <span style="color:#f92672">!=</span> NULL) {
+        <span style="color:#66d9ef">if</span> (cur<span style="color:#f92672">-&gt;</span>left <span style="color:#f92672">==</span> NULL) {
+            printf(<span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%d</span><span style="color:#e6db74"> &#34;</span>, cur<span style="color:#f92672">-&gt;</span>val);
+            cur <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>right;
+        } <span style="color:#66d9ef">else</span> {
+            prev <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>left;
+            <span style="color:#66d9ef">while</span> (prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">!=</span> NULL <span style="color:#f92672">&amp;&amp;</span> prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">!=</span> cur)
+                prev <span style="color:#f92672">=</span> prev<span style="color:#f92672">-&gt;</span>right;
+
+            <span style="color:#66d9ef">if</span> (prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">==</span> NULL) {
+                printf(<span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%d</span><span style="color:#e6db74"> &#34;</span>, cur<span style="color:#f92672">-&gt;</span>val);  <span style="color:#f92672">//</span> the only difference <span style="color:#66d9ef">with</span> inorder<span style="color:#f92672">-</span>traversal
+                prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">=</span> cur;
+                cur <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>left;
+            } <span style="color:#66d9ef">else</span> {
+                prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">=</span> NULL;
+                cur <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>right;
+            }
+        }
+    }
+}
+</code></pre></div><hr>
+<h2 id="三后序遍历">三、后序遍历</h2>
+<p>后续遍历稍显复杂，需要建立一个临时节点dump，令其左孩子是root。并且还需要一个子过程，就是倒序输出某两个节点之间路径上的各个节点。</p>
+<h2 id="步骤-2">步骤：</h2>
+<p>当前节点设置为临时节点dump。</p>
+<p>1.如果当前节点的左孩子为空，则将其右孩子作为当前节点。</p>
+<p>2.如果当前节点的左孩子不为空，在当前节点的左子树中找到当前节点在中序遍历下的前驱节点。</p>
+<ul>
+<li>a) 如果前驱节点的右孩子为空，将它的右孩子设置为当前节点。当前节点更新为当前节点的左孩子。</li>
+<li>b) 如果前驱节点的右孩子为当前节点，将它的右孩子重新设为空。倒序输出从当前节点的左孩子到该前驱节点这条路径上的所有节点。当前节点更新为当前节点的右孩子。</li>
+</ul>
+<p>3.重复以上1、2直到当前节点为空。</p>
+<h2 id="图示-2">图示：</h2>
+<p><img src="https://i.loli.net/2019/12/25/5u8viDtwbkaxBfl.jpg" alt="Morris Traversal_4.jpg"></p>
+<h2 id="代码-2">代码：</h2>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-python" data-lang="python"><span style="color:#f92672">//</span> reverse the tree nodes <span style="color:#e6db74">&#39;from&#39;</span> <span style="color:#f92672">-&gt;</span> <span style="color:#e6db74">&#39;to&#39;</span><span style="color:#f92672">.</span>
+void reverse(TreeNode <span style="color:#f92672">*</span>from, TreeNode <span style="color:#f92672">*</span>to) {
+    <span style="color:#66d9ef">if</span> (<span style="color:#f92672">from</span> <span style="color:#f92672">==</span> to)
+        <span style="color:#66d9ef">return</span>;
+    TreeNode <span style="color:#f92672">*</span>x <span style="color:#f92672">=</span> from, <span style="color:#f92672">*</span>y <span style="color:#f92672">=</span> from<span style="color:#f92672">-&gt;</span>right, <span style="color:#f92672">*</span>z;
+    <span style="color:#66d9ef">while</span> (true) {
+        z <span style="color:#f92672">=</span> y<span style="color:#f92672">-&gt;</span>right;
+        y<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">=</span> x;
+        x <span style="color:#f92672">=</span> y;
+        y <span style="color:#f92672">=</span> z;
+        <span style="color:#66d9ef">if</span> (x <span style="color:#f92672">==</span> to)
+            <span style="color:#66d9ef">break</span>;
+    }
+}
+
+<span style="color:#f92672">//</span> <span style="color:#66d9ef">print</span> the reversed tree nodes <span style="color:#e6db74">&#39;from&#39;</span> <span style="color:#f92672">-&gt;</span> <span style="color:#e6db74">&#39;to&#39;</span><span style="color:#f92672">.</span>
+void printReverse(TreeNode<span style="color:#f92672">*</span> from, TreeNode <span style="color:#f92672">*</span>to) {
+    reverse(from, to);
+    
+    TreeNode <span style="color:#f92672">*</span>p <span style="color:#f92672">=</span> to;
+    <span style="color:#66d9ef">while</span> (true) {
+        printf(<span style="color:#e6db74">&#34;</span><span style="color:#e6db74">%d</span><span style="color:#e6db74"> &#34;</span>, p<span style="color:#f92672">-&gt;</span>val);
+        <span style="color:#66d9ef">if</span> (p <span style="color:#f92672">==</span> from)
+            <span style="color:#66d9ef">break</span>;
+        p <span style="color:#f92672">=</span> p<span style="color:#f92672">-&gt;</span>right;
+    }
+     
+    reverse(to, from);
+}
+ 
+void postorderMorrisTraversal(TreeNode <span style="color:#f92672">*</span>root) {
+    TreeNode dump(<span style="color:#ae81ff">0</span>);
+    dump<span style="color:#f92672">.</span>left <span style="color:#f92672">=</span> root;
+    TreeNode <span style="color:#f92672">*</span>cur <span style="color:#f92672">=</span> <span style="color:#f92672">&amp;</span>dump, <span style="color:#f92672">*</span>prev <span style="color:#f92672">=</span> NULL;
+    <span style="color:#66d9ef">while</span> (cur) {
+        <span style="color:#66d9ef">if</span> (cur<span style="color:#f92672">-&gt;</span>left <span style="color:#f92672">==</span> NULL) {
+            cur <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>right;
+        } <span style="color:#66d9ef">else</span> {
+            prev <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>left;
+            <span style="color:#66d9ef">while</span> (prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">!=</span> NULL <span style="color:#f92672">&amp;&amp;</span> prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">!=</span> cur)
+                prev <span style="color:#f92672">=</span> prev<span style="color:#f92672">-&gt;</span>right;
+
+            <span style="color:#66d9ef">if</span> (prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">==</span> NULL) {
+                prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">=</span> cur;
+                cur <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>left;
+            } <span style="color:#66d9ef">else</span> {
+                printReverse(cur<span style="color:#f92672">-&gt;</span>left, prev);  <span style="color:#f92672">//</span> call <span style="color:#66d9ef">print</span>
+                prev<span style="color:#f92672">-&gt;</span>right <span style="color:#f92672">=</span> NULL;
+                cur <span style="color:#f92672">=</span> cur<span style="color:#f92672">-&gt;</span>right;
+            }
+        }
+    }
+}
+</code></pre></div>
+      
+      <div class="related">
+</div>
+      
+    </div>
+    
+  </div>
+</section>
+
+
+
+<section class="section">
+  <div class="container has-text-centered">
+    <p></p>
+    
+  </div>
+</section>
+
+
+
+</body>
+</html>
+
