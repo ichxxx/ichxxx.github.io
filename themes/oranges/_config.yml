@@ -45,7 +45,7 @@ comments:
     enable: true
     clientID: c009a7bcc3b4c0bb8c8b
     clientSecret: 142085175f21c1e8f5fdaa1cfae5f2fb36d515cb
-    repo: ichxxx/blog-comments
+    repo: blog-comments
     owner: ichxxx
     admin: ichxxx
     id: location.pathname
