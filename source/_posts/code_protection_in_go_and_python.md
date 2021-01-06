@@ -41,6 +41,8 @@ gobfuscate <package> <output_path>
 const str = "hey"
 ```
 
+替换后：
+
 ```go
 var str = func() string {
 		mask := []byte{33, 15, 199}
