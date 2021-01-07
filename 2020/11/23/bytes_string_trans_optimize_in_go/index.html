@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  
+  <title>Go中[]byte与string的转换优化   | ichx&#39;s blog</title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Raleway&display=swap" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+<link rel="stylesheet" href="/css/github-markdown.css">
+<link rel="stylesheet" href="/css/highlight.css">
+
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+  
+
+<meta name="generator" content="Hexo 5.3.0"></head>
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img src="/images/avatar.png" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">ichx</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">Home</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">Archives</a>
+        </li>
+      
+        <li class="nav-item" data-path="/tags/">
+          <a href="/tags/">Tags</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">About</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+<script src="/js/activeNav.js"></script>
+
+
+
+      <div class="flex-container">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title">Go中[]byte与string的转换优化</div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime" title="Update time"></i>
+          2020-11-23
+        </span>
+        
+              <span class="post-tags">
+                <i class="iconfont icon-tags" title="Tags"></i>
+                
+                <span class="span--tag">
+                  <a href="/tags/Go/" title="Go">
+                    <b>#</b> Go
+                  </a>
+                </span>
+                
+                <span class="span--tag">
+                  <a href="/tags/Performance/" title="Performance">
+                    <b>#</b> Performance
+                  </a>
+                </span>
+                
+              </span>
+          
+      </div>
+      <div class="markdown-body">
+        <p>先上优化代码：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">bytesFromString</span><span class="params">(s <span class="keyword">string</span>)</span> []<span class="title">byte</span></span> &#123;</span><br><span class="line">    tmp := (*[<span class="number">2</span>]<span class="keyword">uintptr</span>)(unsafe.Pointer(&amp;s))</span><br><span class="line">    x := [<span class="number">3</span>]<span class="keyword">uintptr</span>&#123;tmp[<span class="number">0</span>], tmp[<span class="number">1</span>], tmp[<span class="number">1</span>]&#125;</span><br><span class="line">    <span class="keyword">return</span> *(*[]<span class="keyword">byte</span>)(unsafe.Pointer(&amp;x))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">stringFromBytes</span><span class="params">(b []<span class="keyword">byte</span>)</span> <span class="title">string</span></span> &#123;</span><br><span class="line">    <span class="keyword">return</span> *(*<span class="keyword">string</span>)(unsafe.Pointer(&amp;b))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<p>一般而言，我们在Go中面对<code>[]byte</code>和<code>string</code>相互转换时，会使用内建的操作<code>[]byte()</code>和<code>string()</code>。但当我们对程序运行性能有较高要求的时候，就不得不考虑这他们的性能消耗问题。</p>
+<p>以下源码基于Go 1.15。</p>
+<h2 id="内部结构分析"><a href="#内部结构分析" class="headerlink" title="内部结构分析"></a>内部结构分析</h2><p>在分析<code>[]byte()</code>和<code>string()</code>的内部实现之前，先来看一下<code>string</code>和<code>slice</code>的内部结构。</p>
+<h3 id="slice的内部结构"><a href="#slice的内部结构" class="headerlink" title="slice的内部结构"></a>slice的内部结构</h3><p><code>slice</code>的内部结构可以在<code>src/runtime/slice.go</code>找到：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> slice <span class="keyword">struct</span> &#123;</span><br><span class="line">    array unsafe.Pointer</span><br><span class="line">    <span class="built_in">len</span>   <span class="keyword">int</span></span><br><span class="line">    <span class="built_in">cap</span>   <span class="keyword">int</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>其中<code>array</code>指向底层数组。</p>
+<h3 id="string的内部结构"><a href="#string的内部结构" class="headerlink" title="string的内部结构"></a>string的内部结构</h3><p><code>string</code>的内部结构可以在<code>src/runtime/string.go</code>找到：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> stringStruct <span class="keyword">struct</span> &#123;</span><br><span class="line">    str unsafe.Pointer</span><br><span class="line">    <span class="built_in">len</span> <span class="keyword">int</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>str</code>指向的是什么呢？</p>
+<p>我们可以在另外一个<code>string</code>结构中找到答案：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Variant with *byte pointer type for DWARF debugging.</span></span><br><span class="line"><span class="keyword">type</span> stringStructDWARF <span class="keyword">struct</span> &#123;</span><br><span class="line">	str *<span class="keyword">byte</span></span><br><span class="line">	<span class="built_in">len</span> <span class="keyword">int</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>这个结构是用于内部DWARF调试的，所以<code>str</code>指向了一个<code>byte</code>数组。</p>
+<h3 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h3><p>在内部结构上，<code>slice</code>比<code>string</code>只多了一个<code>cap</code>字段。</p>
+<p>因为<code>string</code>的底层是一个<code>byte</code>数组，所以<code>[]byte</code>和<code>string</code>唯一的差异便是<code>cap</code>字段。</p>
+<h2 id="内部实现分析"><a href="#内部实现分析" class="headerlink" title="内部实现分析"></a>内部实现分析</h2><p>铺垫完上面的内容，我们来看看<code>[]byte()</code>和<code>string()</code>的内部实现是怎么样的。</p>
+<h3 id="byte-的内部实现"><a href="#byte-的内部实现" class="headerlink" title="[]byte()的内部实现"></a>[]byte()的内部实现</h3><p>调用<code>[]byte()</code>操作时，实际调用的是<code>src/runtime/string.go</code>中的<code>stringtoslicebyte()</code>方法，该方法具体实现如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">type</span> tmpBuf [<span class="number">32</span>]<span class="keyword">byte</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">stringtoslicebyte</span><span class="params">(buf *tmpBuf, s <span class="keyword">string</span>)</span> []<span class="title">byte</span></span> &#123;</span><br><span class="line">    <span class="keyword">var</span> b []<span class="keyword">byte</span></span><br><span class="line">    <span class="comment">// 如果string的长度超过32，则调用rawbyteslice()，分配一块新内存</span></span><br><span class="line">    <span class="keyword">if</span> buf != <span class="literal">nil</span> &amp;&amp; <span class="built_in">len</span>(s) &lt;= <span class="built_in">len</span>(buf) &#123;</span><br><span class="line">        *buf = tmpBuf&#123;&#125;</span><br><span class="line">        b = buf[:<span class="built_in">len</span>(s)]</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		b = rawbyteslice(<span class="built_in">len</span>(s))</span><br><span class="line">	&#125;</span><br><span class="line">    <span class="comment">// 拷贝string中底层数组的内容到[]byte</span></span><br><span class="line">	<span class="built_in">copy</span>(b, s)</span><br><span class="line">	<span class="keyword">return</span> b</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// rawbyteslice allocates a new byte slice. The byte slice is not zeroed.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">rawbyteslice</span><span class="params">(size <span class="keyword">int</span>)</span> <span class="params">(b []<span class="keyword">byte</span>)</span></span> &#123;</span><br><span class="line">	<span class="built_in">cap</span> := roundupsize(<span class="keyword">uintptr</span>(size))</span><br><span class="line">	p := mallocgc(<span class="built_in">cap</span>, <span class="literal">nil</span>, <span class="literal">false</span>)</span><br><span class="line">	<span class="keyword">if</span> <span class="built_in">cap</span> != <span class="keyword">uintptr</span>(size) &#123;</span><br><span class="line">		memclrNoHeapPointers(add(p, <span class="keyword">uintptr</span>(size)), <span class="built_in">cap</span>-<span class="keyword">uintptr</span>(size))</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	*(*slice)(unsafe.Pointer(&amp;b)) = slice&#123;p, size, <span class="keyword">int</span>(<span class="built_in">cap</span>)&#125;</span><br><span class="line">	<span class="keyword">return</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以看到，<code>[]byte()</code>操作必然会产生一次拷贝。</p>
+<p>如果要转换的<code>string</code>长度大于<strong>32</strong>，还会发生一次内存分配。</p>
+<h3 id="string-的内部实现"><a href="#string-的内部实现" class="headerlink" title="string()的内部实现"></a>string()的内部实现</h3><p>调用<code>string()</code>操作时，实际调用的是<code>src/runtime/string.go</code>中的<code>slicebytetostring()</code>方法，该方法具体实现如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// slicebytetostring converts a byte slice to a string.</span></span><br><span class="line"><span class="comment">// It is inserted by the compiler into generated code.</span></span><br><span class="line"><span class="comment">// ptr is a pointer to the first element of the slice;</span></span><br><span class="line"><span class="comment">// n is the length of the slice.</span></span><br><span class="line"><span class="comment">// Buf is a fixed-size buffer for the result,</span></span><br><span class="line"><span class="comment">// it is not nil if the result does not escape.</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">slicebytetostring</span><span class="params">(buf *tmpBuf, ptr *<span class="keyword">byte</span>, n <span class="keyword">int</span>)</span> <span class="params">(str <span class="keyword">string</span>)</span></span> &#123;</span><br><span class="line">	<span class="keyword">if</span> n == <span class="number">0</span> &#123;</span><br><span class="line">		<span class="comment">// Turns out to be a relatively common case.</span></span><br><span class="line">		<span class="comment">// Consider that you want to parse out data between parens in &quot;foo()bar&quot;,</span></span><br><span class="line">		<span class="comment">// you find the indices and convert the subslice to string.</span></span><br><span class="line">		<span class="keyword">return</span> <span class="string">&quot;&quot;</span></span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> raceenabled &#123;</span><br><span class="line">		racereadrangepc(unsafe.Pointer(ptr),</span><br><span class="line">			<span class="keyword">uintptr</span>(n),</span><br><span class="line">			getcallerpc(),</span><br><span class="line">			funcPC(slicebytetostring))</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> msanenabled &#123;</span><br><span class="line">		msanread(unsafe.Pointer(ptr), <span class="keyword">uintptr</span>(n))</span><br><span class="line">	&#125;</span><br><span class="line">    <span class="comment">// 如果[]byte的长度为1</span></span><br><span class="line">	<span class="keyword">if</span> n == <span class="number">1</span> &#123;</span><br><span class="line">        <span class="comment">// 直接从预先分配好的staticuint64s数组中读取，避免重新分配内存</span></span><br><span class="line">		p := unsafe.Pointer(&amp;staticuint64s[*ptr])</span><br><span class="line">		<span class="keyword">if</span> sys.BigEndian &#123;</span><br><span class="line">			p = add(p, <span class="number">7</span>)</span><br><span class="line">		&#125;</span><br><span class="line">		stringStructOf(&amp;str).str = p</span><br><span class="line">		stringStructOf(&amp;str).<span class="built_in">len</span> = <span class="number">1</span></span><br><span class="line">		<span class="keyword">return</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">var</span> p unsafe.Pointer</span><br><span class="line">    <span class="comment">// 如果[]byte的长度超过32，则分配一块新内存</span></span><br><span class="line">	<span class="keyword">if</span> buf != <span class="literal">nil</span> &amp;&amp; n &lt;= <span class="built_in">len</span>(buf) &#123;</span><br><span class="line">		p = unsafe.Pointer(buf)</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		p = mallocgc(<span class="keyword">uintptr</span>(n), <span class="literal">nil</span>, <span class="literal">false</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	stringStructOf(&amp;str).str = p</span><br><span class="line">	stringStructOf(&amp;str).<span class="built_in">len</span> = n</span><br><span class="line">    <span class="comment">// 拷贝[]byte中底层数组的内容到string</span></span><br><span class="line">	memmove(p, unsafe.Pointer(ptr), <span class="keyword">uintptr</span>(n))</span><br><span class="line">	<span class="keyword">return</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 获取string类型结构实例</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">stringStructOf</span><span class="params">(sp *<span class="keyword">string</span>)</span> *<span class="title">stringStruct</span></span> &#123;</span><br><span class="line">	<span class="keyword">return</span> (*stringStruct)(unsafe.Pointer(sp))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p><code>src/runtime/iface.go</code>：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// staticuint64s is used to avoid allocating in convTx for small integer values.</span></span><br><span class="line"><span class="keyword">var</span> staticuint64s = [...]<span class="keyword">uint64</span>&#123;</span><br><span class="line">        <span class="number">0x00</span>, <span class="number">0x01</span>, <span class="number">0x02</span>, <span class="number">0x03</span>, <span class="number">0x04</span>, <span class="number">0x05</span>, <span class="number">0x06</span>, <span class="number">0x07</span>,</span><br><span class="line">        ...</span><br><span class="line">        <span class="number">0xf8</span>, <span class="number">0xf9</span>, <span class="number">0xfa</span>, <span class="number">0xfb</span>, <span class="number">0xfc</span>, <span class="number">0xfd</span>, <span class="number">0xfe</span>, <span class="number">0xff</span>,</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>要转换的<code>[]byte</code>长度， 如果为1，则没有额外的性能消耗；</p>
+<p>如果大于1，则必然会发生一次拷贝；</p>
+<p>如果大于<strong>32</strong>，还会发生一次内存分配。</p>
+<h3 id="小结-1"><a href="#小结-1" class="headerlink" title="小结"></a>小结</h3><p>经过一顿分析，我们可以确定，<code>[]byte()</code>和<code>string()</code>这两个内建操作，会产生一次底层数组的拷贝，如果数据量较大，还会产生一次内存分配。</p>
+<h2 id="优化"><a href="#优化" class="headerlink" title="优化"></a>优化</h2><p>结合<code>[]byte</code>和<code>string</code>的内部结构，显然<code>[]byte()</code>和<code>string()</code>中的拷贝和内存分配是可以被绕过的，即共享它们的底层数组，手动完成结构转换。</p>
+<p>手动转换需要使用到<code>unsafe</code>包来操作类型，具体方法如下：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">bytesFromString</span><span class="params">(s <span class="keyword">string</span>)</span> []<span class="title">byte</span></span> &#123;</span><br><span class="line">    <span class="comment">// 将string类型的两个字段转化到一个临时uintptr数组</span></span><br><span class="line">    tmp := (*[<span class="number">2</span>]<span class="keyword">uintptr</span>)(unsafe.Pointer(&amp;s))</span><br><span class="line">    <span class="comment">// 构建一个拥有完整slice类型字段的uintptr数组</span></span><br><span class="line">    x := [<span class="number">3</span>]<span class="keyword">uintptr</span>&#123;tmp[<span class="number">0</span>], tmp[<span class="number">1</span>], tmp[<span class="number">1</span>]&#125;</span><br><span class="line">    <span class="comment">// 将手动构建出的uintptr数组还原成slice类型</span></span><br><span class="line">    <span class="keyword">return</span> *(*[]<span class="keyword">byte</span>)(unsafe.Pointer(&amp;x))</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">stringFromBytes</span><span class="params">(b []<span class="keyword">byte</span>)</span> <span class="title">string</span></span> &#123;</span><br><span class="line">    <span class="comment">// 直接进行类型转换，多余的字段会被舍弃</span></span><br><span class="line">    <span class="keyword">return</span> *(*<span class="keyword">string</span>)(unsafe.Pointer(&amp;b))</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<h2 id="性能测试"><a href="#性能测试" class="headerlink" title="性能测试"></a>性能测试</h2><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">var</span> _s = strings.Repeat(<span class="string">&quot;foo&quot;</span>, <span class="number">1024</span>)</span><br><span class="line"><span class="keyword">var</span> _b = []<span class="keyword">byte</span>(_s)</span><br><span class="line"><span class="keyword">var</span> result <span class="keyword">interface</span>&#123;&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkString1</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> bytes <span class="keyword">string</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; b.N; i++ &#123;</span><br><span class="line">		bytes = <span class="keyword">string</span>(_b)</span><br><span class="line">	&#125;</span><br><span class="line">	result = bytes</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkString2</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> bytes <span class="keyword">string</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; b.N; i++ &#123;</span><br><span class="line">		bytes = stringFromBytes(_b)</span><br><span class="line">	&#125;</span><br><span class="line">	result = bytes</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkBytes1</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> bytes []<span class="keyword">byte</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; b.N; i++ &#123;</span><br><span class="line">		bytes = []<span class="keyword">byte</span>(_s)</span><br><span class="line">	&#125;</span><br><span class="line">	result = bytes</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">BenchmarkBytes2</span><span class="params">(b *testing.B)</span></span> &#123;</span><br><span class="line">	<span class="keyword">var</span> bytes []<span class="keyword">byte</span></span><br><span class="line">	<span class="keyword">for</span> i := <span class="number">0</span>; i &lt; b.N; i++ &#123;</span><br><span class="line">		bytes = bytesFromString(_s)</span><br><span class="line">	&#125;</span><br><span class="line">	result = bytes</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>编写如上测试，转换一个3KB的数据，得到如下结果：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">BenchmarkString1       2912431      416 ns/op    3072 B/op    1 allocs/op</span><br><span class="line">BenchmarkString2    1000000000    0.407 ns/op       0 B/op    0 allocs/op</span><br><span class="line">BenchmarkBytes1        2850360      409 ns/op    3072 B/op    1 allocs/op</span><br><span class="line">BenchmarkBytes2      502088688     2.08 ns/op       0 B/op    0 allocs/op</span><br></pre></td></tr></table></figure>
+<p>采用直接转换，在无需分配额外内存的同时，其转换耗时也几乎可以忽略。</p>
+<p>当然，采用内建操作的这400ns差异在大部分场景下也是几乎可以忽略的。</p>
+<p>那如果需要转换的数据不是3KB，而是3MB呢？</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">BenchmarkString1          5917    199307 ns/op    3145730 B/op    1 allocs/op</span><br><span class="line">BenchmarkString2    1000000000     0.399 ns/op          0 B/op    0 allocs/op</span><br><span class="line">BenchmarkBytes1        2850360    190067 ns/op    3145734 B/op    1 allocs/op</span><br><span class="line">BenchmarkBytes2      558141092      2.10 ns/op          0 B/op    0 allocs/op</span><br></pre></td></tr></table></figure>
+<p>可以看到，直接转换不受数据量增大的影响，而内建操作的耗时则随着数据量的增大而增加。</p>
+<p>在3MB的数据量下，其一次操作的耗时已经接近0.2ms。</p>
+<p>假设我们需要在1秒内进行1000次运算，即1ms运算一次，而一次内建操作的转换就已经占用了五分之一的耗时，同时需要分配跟转换对象同等大小的内存，如此的性能消耗使得我们不得不考虑进去。</p>
+<h2 id="局限"><a href="#局限" class="headerlink" title="局限"></a>局限</h2><p>直接转换的性能提升是以牺牲安全性为代价的，因为我们在两个不同类型结构中，共享了同一个底层数组。</p>
+<p>在Go中，<code>string</code>类型是不可变的，而<code>[]byte</code>类型则是可以被修改的。</p>
+<p>假设我们需要修改通过直接转换而来的<code>[]byte</code>，那么同时也会对<code>string</code>的底层数组做出修改，这样会造成严重的错误！</p>
+<p><strong>如果你的程序不能保证通过直接转换而来的<code>[]byte</code>不被修改，则不推荐使用该方法。</strong></p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>在对程序运行性能有较高要求且对数据只有读操作的场景，通过使用<code>unsafe</code>包，我们可以在高性能且无需分配额外内存的情况下，完成<code>[]byte</code>和<code>string</code>的相互转换。</p>
+
+      </div>
+      
+        <div class="prev-or-next">
+          <div class="post-foot-next">
+            
+              <a href="/2019/12/24/morris_traversal/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
+                <span>Prev</span>
+              </a>
+            
+          </div>
+          <div class="post-attach">
+            <span class="post-pubtime">
+              <i class="iconfont icon-updatetime" title="Update time"></i>
+              2020-11-23
+            </span>
+            
+                  <span class="post-tags">
+                    <i class="iconfont icon-tags" title="Tags"></i>
+                    
+                    <span class="span--tag">
+                      <a href="/tags/Go/" title="Go">
+                        <b>#</b> Go
+                      </a>
+                    </span>
+                    
+                    <span class="span--tag">
+                      <a href="/tags/Performance/" title="Performance">
+                        <b>#</b> Performance
+                      </a>
+                    </span>
+                    
+                  </span>
+              
+          </div>
+          <div class="post-foot-prev">
+            
+              <a href="/2021/01/06/code_protection_in_go_and_python/" target="_self">
+                <span>Next</span>
+                <i class="iconfont icon-chevronright"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+    </div>
+    
+  <div class="post-catalog" id="catalog">
+    <div class="title">Contents</div>
+    <div class="catalog-content">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%86%85%E9%83%A8%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90"><span class="toc-text">内部结构分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#slice%E7%9A%84%E5%86%85%E9%83%A8%E7%BB%93%E6%9E%84"><span class="toc-text">slice的内部结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#string%E7%9A%84%E5%86%85%E9%83%A8%E7%BB%93%E6%9E%84"><span class="toc-text">string的内部结构</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B0%8F%E7%BB%93"><span class="toc-text">小结</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%86%85%E9%83%A8%E5%AE%9E%E7%8E%B0%E5%88%86%E6%9E%90"><span class="toc-text">内部实现分析</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#byte-%E7%9A%84%E5%86%85%E9%83%A8%E5%AE%9E%E7%8E%B0"><span class="toc-text">[]byte()的内部实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#string-%E7%9A%84%E5%86%85%E9%83%A8%E5%AE%9E%E7%8E%B0"><span class="toc-text">string()的内部实现</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%B0%8F%E7%BB%93-1"><span class="toc-text">小结</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BC%98%E5%8C%96"><span class="toc-text">优化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95"><span class="toc-text">性能测试</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B1%80%E9%99%90"><span class="toc-text">局限</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%80%BB%E7%BB%93"><span class="toc-text">总结</span></a></li></ol>
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
+    
+      <div class="comments-container" style="margin-bottom: 40px;">
+        
+
+
+
+
+  
+<link rel="stylesheet" href="/css/gitalk.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js"></script>
+
+  <div id="gitalk-container"></div>
+
+  <script>
+    const gitalk = new Gitalk({
+      clientID: 'c009a7bcc3b4c0bb8c8b',
+      clientSecret: '142085175f21c1e8f5fdaa1cfae5f2fb36d515cb',
+      repo: 'blog-comments',
+      owner: 'ichxxx',
+      admin: ['ichxxx'],
+      id: location.pathname,
+      distractionFreeMode: false
+    })
+
+    gitalk.render('gitalk-container')
+  </script>
+
+
+      </div>
+    
+  </div>
+
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+
+
+    </div>
+  </body>
+</html>

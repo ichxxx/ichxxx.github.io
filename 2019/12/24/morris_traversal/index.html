@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  
+  <title>Morris Traversal方法遍历二叉树   | ichx&#39;s blog</title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://fonts.googleapis.com/css?family=Raleway&display=swap" rel="stylesheet">
+
+  <!-- hexo site css -->
+  
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/iconfont/iconfont.css">
+<link rel="stylesheet" href="/css/github-markdown.css">
+<link rel="stylesheet" href="/css/highlight.css">
+
+
+  <!-- jquery3.3.1 -->
+  <script src="https://cdn.bootcss.com/jquery/3.3.1/jquery.min.js"></script>
+
+  <!-- fancybox -->
+  <link href="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.css" rel="stylesheet">
+  <script async src="https://cdn.bootcss.com/fancybox/3.5.2/jquery.fancybox.min.js"></script>
+  
+<script src="/js/fancybox.js"></script>
+
+
+  
+
+<meta name="generator" content="Hexo 5.3.0"></head>
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img src="/images/avatar.png" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">ichx</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">Home</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">Archives</a>
+        </li>
+      
+        <li class="nav-item" data-path="/tags/">
+          <a href="/tags/">Tags</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">About</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+<script src="/js/activeNav.js"></script>
+
+
+
+      <div class="flex-container">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title">Morris Traversal方法遍历二叉树</div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime" title="Update time"></i>
+          2019-12-24
+        </span>
+        
+              <span class="post-tags">
+                <i class="iconfont icon-tags" title="Tags"></i>
+                
+                <span class="span--tag">
+                  <a href="/tags/Algorithm/" title="Algorithm">
+                    <b>#</b> Algorithm
+                  </a>
+                </span>
+                
+                <span class="span--tag">
+                  <a href="/tags/BinaryTree/" title="BinaryTree">
+                    <b>#</b> BinaryTree
+                  </a>
+                </span>
+                
+              </span>
+          
+      </div>
+      <div class="markdown-body">
+        <p>通常，实现二叉树遍历有两个常用的方法：一是递归，二是使用栈实现的迭代。<br>这两种方法都是O(n)的空间复杂度（递归本身占用stack空间或者用户自定义的stack）</p>
+<p>Morris Traversal方法只需要O(1)空间，而且同样可以在O(n)时间内完成。</p>
+<p>要使用O(1)空间进行遍历，最大的难点在于：遍历到子节点时怎样重新返回到父节点（假设节点中没有指向父节点的指针）。</p>
+<p>由于不能用栈作为辅助空间。为了解决这个问题，Morris方法用到了线索二叉树的概念。<br>在Morris方法中不需要为每个节点额外分配指针指向其前驱和后继节点，只需要利用叶子节点中的左右空指针指向某种顺序遍历下的前驱节点或后继节点就可以了。</p>
+<p>Morris只提供了中序遍历的方法，在中序遍历的基础上稍加修改可以实现前序遍历，而后序遍历就要再费点心思了。</p>
+<h2 id="中序遍历"><a href="#中序遍历" class="headerlink" title="中序遍历"></a>中序遍历</h2><h3 id="步骤"><a href="#步骤" class="headerlink" title="步骤"></a>步骤</h3><p>1.如果当前节点的左孩子为空，则输出当前节点并将其右孩子作为当前节点。</p>
+<p>2.如果当前节点的左孩子不为空，在当前节点的左子树中找到当前节点在中序遍历下的前驱节点。</p>
+<ul>
+<li>a) 如果前驱节点的右孩子为空，将它的右孩子设置为当前节点。当前节点更新为当前节点的左孩子。</li>
+<li>b)如果前驱节点的右孩子为当前节点，将它的右孩子重新设为空（恢复树的形状）。输出当前节点。当前节点更新为当前节点的右孩子。</li>
+</ul>
+<p>3.重复以上1、2直到当前节点为空。</p>
+<h3 id="图示"><a href="#图示" class="headerlink" title="图示"></a>图示</h3><p>下图为每一步迭代的结果（从左至右，从上到下），cur代表当前节点，深色节点表示该节点已输出。</p>
+<p><img src="https://i.loli.net/2019/12/25/cvOM6eztQLkWYF2.jpg" alt="Morris Traversal_1.jpg"></p>
+<h3 id="代码"><a href="#代码" class="headerlink" title="代码"></a>代码</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">inorderMorrisTraversal</span><span class="params">(TreeNode *root)</span> </span>&#123;</span><br><span class="line">    TreeNode *cur = root, *prev = NULL;</span><br><span class="line">    <span class="keyword">while</span> (cur != NULL) &#123;</span><br><span class="line">        <span class="keyword">if</span> (cur-&gt;left == NULL) &#123;</span><br><span class="line">            printf(<span class="string">&quot;%d &quot;</span>, cur-&gt;val);</span><br><span class="line">            cur = cur-&gt;right;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// find predecessor</span></span><br><span class="line">            prev = cur-&gt;left;</span><br><span class="line">            <span class="keyword">while</span> (prev-&gt;right != NULL &amp;&amp; prev-&gt;right != cur)</span><br><span class="line">                prev = prev-&gt;right;</span><br><span class="line"> </span><br><span class="line">            <span class="keyword">if</span> (prev-&gt;right == NULL) &#123;</span><br><span class="line">                prev-&gt;right = cur;</span><br><span class="line">                cur = cur-&gt;left;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                prev-&gt;right = NULL;<span class="number">5</span>                 </span><br><span class="line">                printf(<span class="string">&quot;%d &quot;</span>, cur-&gt;val);</span><br><span class="line">                cur = cur-&gt;right;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h3 id="复杂度分析"><a href="#复杂度分析" class="headerlink" title="复杂度分析"></a>复杂度分析</h3><p>空间复杂度：O(1) （为只用了两个辅助指针）<br>时间复杂度：O(n)</p>
+<p>证明时间复杂度为O(n)，最大的疑惑在于寻找中序遍历下二叉树中所有节点的前驱节点的时间复杂度是多少，即以下两行代码：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">while (prev-&gt;right != NULL &amp;&amp; prev-&gt;right != cur)</span><br><span class="line">    prev = prev-&gt;right;</span><br></pre></td></tr></table></figure>
+<p>直觉上，认为它的复杂度是O(nlogn)，因为找单个节点的前驱节点与树的高度有关。<br>但事实上，寻找所有节点的前驱节点只需要O(n)时间。n个节点的二叉树中一共有n-1条边，整个过程中每条边最多只走2次，一次是为了定位到某个节点，另一次是为了寻找上面某个节点的前驱节点，如下图所示，其中红色是为了定位到某个节点，黑色线是为了找到前驱节点。所以复杂度为O(n)。</p>
+<p><img src="https://i.loli.net/2019/12/25/cNg9apwBPyiESfU.jpg" alt="Morris Traversal_2 .jpg"></p>
+<h2 id="前序遍历"><a href="#前序遍历" class="headerlink" title="前序遍历"></a>前序遍历</h2><p>前序遍历与中序遍历相似，代码上只有一行不同，不同就在于输出的顺序。</p>
+<h3 id="步骤-1"><a href="#步骤-1" class="headerlink" title="步骤"></a>步骤</h3><p>1.如果当前节点的左孩子为空，则输出当前节点并将其右孩子作为当前节点。</p>
+<p>2.如果当前节点的左孩子不为空，在当前节点的左子树中找到当前节点在中序遍历下的前驱节点。</p>
+<ul>
+<li>a)如果前驱节点的右孩子为空，将它的右孩子设置为当前节点。当前节点更新为当前节点的左孩子。</li>
+<li>b)如果前驱节点的右孩子为当前节点，将它的右孩子重新设为空（恢复树的形状）。输出当前节点。当前节点更新为当前节点的右孩子。</li>
+</ul>
+<p>3.重复以上1、2直到当前节点为空。</p>
+<h3 id="图示-1"><a href="#图示-1" class="headerlink" title="图示"></a>图示</h3><p><img src="https://i.loli.net/2019/12/25/yMAE4huXWJxmUjf.jpg" alt="Morris Traversal_3.jpg"></p>
+<h3 id="代码-1"><a href="#代码-1" class="headerlink" title="代码"></a>代码</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">preorderMorrisTraversal</span><span class="params">(TreeNode *root)</span> </span>&#123;</span><br><span class="line">    TreeNode *cur = root, *prev = NULL;</span><br><span class="line">    <span class="keyword">while</span> (cur != NULL) &#123;</span><br><span class="line">        <span class="keyword">if</span> (cur-&gt;left == NULL) &#123;</span><br><span class="line">            printf(<span class="string">&quot;%d &quot;</span>, cur-&gt;val);</span><br><span class="line">            cur = cur-&gt;right;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            prev = cur-&gt;left;</span><br><span class="line">            <span class="keyword">while</span> (prev-&gt;right != NULL &amp;&amp; prev-&gt;right != cur)</span><br><span class="line">                prev = prev-&gt;right;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (prev-&gt;right == NULL) &#123;</span><br><span class="line">                printf(<span class="string">&quot;%d &quot;</span>, cur-&gt;val);  <span class="comment">// the only difference with inorder-traversal</span></span><br><span class="line">                prev-&gt;right = cur;</span><br><span class="line">                cur = cur-&gt;left;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                prev-&gt;right = NULL;</span><br><span class="line">                cur = cur-&gt;right;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+<h2 id="后序遍历"><a href="#后序遍历" class="headerlink" title="后序遍历"></a>后序遍历</h2><p>后续遍历稍显复杂，需要建立一个临时节点dump，令其左孩子是root。并且还需要一个子过程，就是倒序输出某两个节点之间路径上的各个节点。</p>
+<h3 id="步骤-2"><a href="#步骤-2" class="headerlink" title="步骤"></a>步骤</h3><p>当前节点设置为临时节点dump。</p>
+<p>1.如果当前节点的左孩子为空，则将其右孩子作为当前节点。</p>
+<p>2.如果当前节点的左孩子不为空，在当前节点的左子树中找到当前节点在中序遍历下的前驱节点。</p>
+<ul>
+<li>a) 如果前驱节点的右孩子为空，将它的右孩子设置为当前节点。当前节点更新为当前节点的左孩子。</li>
+<li>b) 如果前驱节点的右孩子为当前节点，将它的右孩子重新设为空。倒序输出从当前节点的左孩子到该前驱节点这条路径上的所有节点。当前节点更新为当前节点的右孩子。</li>
+</ul>
+<p>3.重复以上1、2直到当前节点为空。</p>
+<h3 id="图示-2"><a href="#图示-2" class="headerlink" title="图示"></a>图示</h3><p><img src="https://i.loli.net/2019/12/25/5u8viDtwbkaxBfl.jpg" alt="Morris Traversal_4.jpg"></p>
+<h3 id="代码-2"><a href="#代码-2" class="headerlink" title="代码"></a>代码</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// reverse the tree nodes &#x27;from&#x27; -&gt; &#x27;to&#x27;.</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">reverse</span><span class="params">(TreeNode *from, TreeNode *to)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (from == to)</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    TreeNode *x = from, *y = from-&gt;right, *z;</span><br><span class="line">    <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">        z = y-&gt;right;</span><br><span class="line">        y-&gt;right = x;</span><br><span class="line">        x = y;</span><br><span class="line">        y = z;</span><br><span class="line">        <span class="keyword">if</span> (x == to)</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// print the reversed tree nodes &#x27;from&#x27; -&gt; &#x27;to&#x27;.</span></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">printReverse</span><span class="params">(TreeNode* from, TreeNode *to)</span> </span>&#123;</span><br><span class="line">    reverse(from, to);</span><br><span class="line">    </span><br><span class="line">    TreeNode *p = to;</span><br><span class="line">    <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">        printf(<span class="string">&quot;%d &quot;</span>, p-&gt;val);</span><br><span class="line">        <span class="keyword">if</span> (p == from)</span><br><span class="line">            <span class="keyword">break</span>;</span><br><span class="line">        p = p-&gt;right;</span><br><span class="line">    &#125;</span><br><span class="line">     </span><br><span class="line">    reverse(to, from);</span><br><span class="line">&#125;</span><br><span class="line"> </span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">postorderMorrisTraversal</span><span class="params">(TreeNode *root)</span> </span>&#123;</span><br><span class="line">    <span class="function">TreeNode <span class="title">dump</span><span class="params">(<span class="number">0</span>)</span></span>;</span><br><span class="line">    dump.left = root;</span><br><span class="line">    TreeNode *cur = &amp;dump, *prev = NULL;</span><br><span class="line">    <span class="keyword">while</span> (cur) &#123;</span><br><span class="line">        <span class="keyword">if</span> (cur-&gt;left == NULL) &#123;</span><br><span class="line">            cur = cur-&gt;right;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            prev = cur-&gt;left;</span><br><span class="line">            <span class="keyword">while</span> (prev-&gt;right != NULL &amp;&amp; prev-&gt;right != cur)</span><br><span class="line">                prev = prev-&gt;right;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (prev-&gt;right == NULL) &#123;</span><br><span class="line">                prev-&gt;right = cur;</span><br><span class="line">                cur = cur-&gt;left;</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                printReverse(cur-&gt;left, prev);  <span class="comment">// call print</span></span><br><span class="line">                prev-&gt;right = NULL;</span><br><span class="line">                cur = cur-&gt;right;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+      </div>
+      
+        <div class="prev-or-next">
+          <div class="post-foot-next">
+            
+              <a href="/2019/12/24/ref_and_object_in_python/" target="_self">
+                <i class="iconfont icon-chevronleft"></i>
+                <span>Prev</span>
+              </a>
+            
+          </div>
+          <div class="post-attach">
+            <span class="post-pubtime">
+              <i class="iconfont icon-updatetime" title="Update time"></i>
+              2019-12-24
+            </span>
+            
+                  <span class="post-tags">
+                    <i class="iconfont icon-tags" title="Tags"></i>
+                    
+                    <span class="span--tag">
+                      <a href="/tags/Algorithm/" title="Algorithm">
+                        <b>#</b> Algorithm
+                      </a>
+                    </span>
+                    
+                    <span class="span--tag">
+                      <a href="/tags/BinaryTree/" title="BinaryTree">
+                        <b>#</b> BinaryTree
+                      </a>
+                    </span>
+                    
+                  </span>
+              
+          </div>
+          <div class="post-foot-prev">
+            
+              <a href="/2020/11/23/bytes_string_trans_optimize_in_go/" target="_self">
+                <span>Next</span>
+                <i class="iconfont icon-chevronright"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+    </div>
+    
+  <div class="post-catalog" id="catalog">
+    <div class="title">Contents</div>
+    <div class="catalog-content">
+      <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%AD%E5%BA%8F%E9%81%8D%E5%8E%86"><span class="toc-text">中序遍历</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A4"><span class="toc-text">步骤</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9B%BE%E7%A4%BA"><span class="toc-text">图示</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81"><span class="toc-text">代码</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E6%9D%82%E5%BA%A6%E5%88%86%E6%9E%90"><span class="toc-text">复杂度分析</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%89%8D%E5%BA%8F%E9%81%8D%E5%8E%86"><span class="toc-text">前序遍历</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A4-1"><span class="toc-text">步骤</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9B%BE%E7%A4%BA-1"><span class="toc-text">图示</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81-1"><span class="toc-text">代码</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%90%8E%E5%BA%8F%E9%81%8D%E5%8E%86"><span class="toc-text">后序遍历</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%AD%A5%E9%AA%A4-2"><span class="toc-text">步骤</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%9B%BE%E7%A4%BA-2"><span class="toc-text">图示</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81-2"><span class="toc-text">代码</span></a></li></ol></li></ol>
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
+    
+      <div class="comments-container" style="margin-bottom: 40px;">
+        
+
+
+
+
+  
+<link rel="stylesheet" href="/css/gitalk.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js"></script>
+
+  <div id="gitalk-container"></div>
+
+  <script>
+    const gitalk = new Gitalk({
+      clientID: 'c009a7bcc3b4c0bb8c8b',
+      clientSecret: '142085175f21c1e8f5fdaa1cfae5f2fb36d515cb',
+      repo: 'blog-comments',
+      owner: 'ichxxx',
+      admin: ['ichxxx'],
+      id: location.pathname,
+      distractionFreeMode: false
+    })
+
+    gitalk.render('gitalk-container')
+  </script>
+
+
+      </div>
+    
+  </div>
+
+
+      </div>
+
+      <div class="back-to-top hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+<script src="/js/backtotop.js"></script>
+
+
+
+      
+
+
+    </div>
+  </body>
+</html>
