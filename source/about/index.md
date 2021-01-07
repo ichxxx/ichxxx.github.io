@@ -7,3 +7,5 @@ tags:
 ---
 
 一个初学者。
+
+邮箱：chen@ichxxx.cn
